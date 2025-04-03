@@ -10,14 +10,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Badge } from '@/components/ui/badge';
-import { Ambulance, HeartPulse, Truck, Activity, Warehouse, Utensils, Droplets, AlertOctagon, Bell, HelpingHand, CheckCircle, Loader2 } from 'lucide-react';
+import { Ambulance, HeartPulse, Truck, Activity, Warehouse, Utensils, Droplets, AlertOctagon, Bell, HelpingHand, CheckCircle, Loader2, Phone, Plus } from 'lucide-react';
 import { 
   initiateEvacuation, 
   sendRegionAlert, 
   requestEmergencyResources, 
-  signalAllClear 
+  signalAllClear,
+  addCustomPhoneNumber
 } from '@/services/emergencyCommunicationService';
 import NotificationSummary from './NotificationSummary';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const resourcePredictionSchema = z.object({
   disasterType: z.enum(['flood', 'fire', 'earthquake', 'hurricane']),
@@ -60,6 +62,8 @@ const EmergencyActions = () => {
   const [notificationHistory, setNotificationHistory] = useState<NotificationRecord[]>([]);
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [regionName, setRegionName] = useState("Downtown Metro Area");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [addedPhoneNumbers, setAddedPhoneNumbers] = useState<string[]>([]);
 
   const form = useForm<ResourcePredictionFormValues>({
     resolver: zodResolver(resourcePredictionSchema),
@@ -72,6 +76,44 @@ const EmergencyActions = () => {
   });
 
   const watchDisasterType = form.watch("disasterType");
+
+  const handleAddPhoneNumber = () => {
+    if (!phoneNumber) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const phoneRegex = /^\+?[0-9]{10,15}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Please enter a valid phone number (10-15 digits, optionally with + prefix)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addCustomPhoneNumber(phoneNumber);
+    
+    if (!addedPhoneNumbers.includes(phoneNumber)) {
+      setAddedPhoneNumbers(prev => [...prev, phoneNumber]);
+      toast({
+        title: "Phone Number Added",
+        description: `${phoneNumber} will now receive emergency alerts`,
+      });
+    } else {
+      toast({
+        title: "Phone Number Already Added",
+        description: `${phoneNumber} is already registered to receive alerts`,
+      });
+    }
+    
+    setPhoneNumber("");
+  };
 
   const handleEmergencyAction = async (action: string) => {
     setIsLoading(action);
@@ -359,7 +401,7 @@ const EmergencyActions = () => {
         <CardTitle className="text-xl">Emergency Actions</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="mb-4">
+        <div className="mb-4 space-y-4">
           <div className="flex flex-col gap-2">
             <label htmlFor="region-input" className="text-sm font-medium">Current Region</label>
             <Input 
@@ -369,6 +411,47 @@ const EmergencyActions = () => {
               placeholder="Enter region name"
               className="flex-1"
             />
+          </div>
+          
+          <div className="space-y-2">
+            <label htmlFor="phone-input" className="text-sm font-medium">Add Your Phone Number to Alert List</label>
+            <div className="flex gap-2">
+              <Input 
+                id="phone-input"
+                value={phoneNumber} 
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="e.g. +12345678901"
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleAddPhoneNumber}
+                variant="outline"
+                size="icon"
+                type="button"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {addedPhoneNumbers.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs text-muted-foreground mb-1">Your devices receiving alerts:</p>
+                <div className="flex flex-wrap gap-2">
+                  {addedPhoneNumbers.map((number, index) => (
+                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      {number}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <Alert className="bg-muted/50 mt-2">
+              <AlertDescription className="text-xs">
+                In a real emergency system, this would send actual SMS messages to your phone. For this demo, messages are simulated in the console.
+              </AlertDescription>
+            </Alert>
           </div>
         </div>
         

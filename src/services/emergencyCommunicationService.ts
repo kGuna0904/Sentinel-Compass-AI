@@ -1,4 +1,3 @@
-
 interface ContactInfo {
   name: string;
   role: string;
@@ -121,8 +120,19 @@ const defaultEmergencyConfig: EmergencyConfig = {
   ]
 };
 
+// Add a new function to add a custom phone number to the region devices
+export const addCustomPhoneNumber = (phoneNumber: string, config = defaultEmergencyConfig): EmergencyConfig => {
+  // First check if the phone number already exists in the config
+  if (!config.regionDevices.includes(phoneNumber)) {
+    config.regionDevices.push(phoneNumber);
+    console.log(`Added phone number ${phoneNumber} to region devices`);
+  } else {
+    console.log(`Phone number ${phoneNumber} already in region devices`);
+  }
+  return config;
+};
+
 // In a real application, these functions would make API calls to external services
-// for sending SMS, push notifications, or emails
 export const sendSMS = async (phoneNumber: string, message: string): Promise<boolean> => {
   console.log(`SMS would be sent to ${phoneNumber}: ${message}`);
   // Simulate API call
