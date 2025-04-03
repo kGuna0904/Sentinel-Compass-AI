@@ -208,7 +208,7 @@ const EmergencyActions = () => {
             toast({
               title: `${action} signal sent`,
               description: "All clear notification has been sent to all affected personnel and devices.",
-              variant: "success",
+              variant: "default",
             });
             setNotificationHistory(prev => 
               prev.map(n => n.id === notificationId ? { ...n, status: 'success' } : n)
@@ -360,9 +360,10 @@ const EmergencyActions = () => {
       </CardHeader>
       <CardContent>
         <div className="mb-4">
-          <FormLabel>Current Region</FormLabel>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="region-input" className="text-sm font-medium">Current Region</label>
             <Input 
+              id="region-input"
               value={regionName} 
               onChange={(e) => setRegionName(e.target.value)}
               placeholder="Enter region name"
