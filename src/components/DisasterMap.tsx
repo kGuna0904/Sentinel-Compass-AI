@@ -20,18 +20,17 @@ interface DisasterMapProps {
   }[];
 }
 
-// This would normally come from an API call or environment variable
-// For demo purposes, we're using a public token, but in a real app,
-// this should be handled securely via backend services
-const MAPBOX_TOKEN = 'pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbHEwZDJoaWcwejViMmpsc2wzY2Q1aHhlIn0.z1GNjQ73-_-3GUoWMmPl2A';
+// We'll provide a default token but allow users to update it
+const DEFAULT_MAPBOX_TOKEN = 'pk.eyJ1IjoiZGVtb3VzZXIyMDI1IiwiYSI6ImNscm1rOTgyYTBsN3YyanBsMWhmb2xuOHIifQ.sTmW8qmLWb_1ZRuR1oVK8g';
 
 const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [apiToken, setApiToken] = useState(MAPBOX_TOKEN);
+  const [apiToken, setApiToken] = useState(DEFAULT_MAPBOX_TOKEN);
   const [tokenInput, setTokenInput] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   // Color mapping for disaster types
   const colorMap = {
@@ -49,38 +48,54 @@ const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
     critical: 45,
   };
 
-  useEffect(() => {
+  const initializeMap = () => {
     if (!mapContainer.current || !apiToken) return;
-
-    // Initialize map
-    mapboxgl.accessToken = apiToken;
     
-    if (map.current) return; // Initialize only once
+    // Clear any previous errors
+    setMapError(null);
     
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [0, 20], // Default center
-      zoom: 1.5,
-    });
-
-    // Add navigation controls
-    map.current.addControl(
-      new mapboxgl.NavigationControl({
-        visualizePitch: true,
-      }),
-      'top-right'
-    );
-
-    // Clean up on unmount
-    return () => {
-      map.current?.remove();
+    // Remove existing map if it exists
+    if (map.current) {
+      map.current.remove();
       map.current = null;
-    };
-  }, [apiToken]);
+    }
 
-  // Add disaster markers whenever disasters prop changes
-  useEffect(() => {
+    try {
+      // Initialize map
+      mapboxgl.accessToken = apiToken;
+      
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [0, 20], // Default center
+        zoom: 1.5,
+      });
+
+      // Add navigation controls
+      map.current.addControl(
+        new mapboxgl.NavigationControl({
+          visualizePitch: true,
+        }),
+        'top-right'
+      );
+      
+      // Add error handling for map loading
+      map.current.on('error', (e) => {
+        console.error('Mapbox error:', e);
+        setMapError('Error loading map. Please check your Mapbox token.');
+      });
+
+      // Add disaster markers once map is loaded
+      map.current.on('load', () => {
+        addDisasterMarkers();
+      });
+    } catch (error) {
+      console.error('Error initializing map:', error);
+      setMapError('Failed to initialize map. Please try a different Mapbox token.');
+    }
+  };
+
+  const addDisasterMarkers = () => {
     if (!map.current) return;
 
     // Clear existing markers
@@ -122,6 +137,25 @@ const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
       
       markers.current.push(marker);
     });
+  };
+
+  useEffect(() => {
+    initializeMap();
+    
+    // Clean up on unmount
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, [apiToken]);
+
+  // Update markers when disasters change
+  useEffect(() => {
+    if (map.current && map.current.loaded()) {
+      addDisasterMarkers();
+    }
   }, [disasters]);
 
   const handleSearch = () => {
@@ -160,6 +194,7 @@ const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
 
   const handleApiTokenSubmit = () => {
     if (apiToken && apiToken.length > 0) {
+      initializeMap();
       setTokenInput(false);
     }
   };
@@ -180,34 +215,61 @@ const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <div className="flex gap-2">
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search location..."
-                className="flex-1"
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              />
-              <Button variant="outline" onClick={handleSearch}>
-                <Search className="h-4 w-4" />
+            <div className="flex justify-between items-center">
+              <div className="flex gap-2 flex-1">
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search location..."
+                  className="flex-1"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                <Button variant="outline" onClick={handleSearch}>
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-xs text-muted-foreground"
+                onClick={() => setTokenInput(true)}
+              >
+                Change API Token
               </Button>
             </div>
-            <div className="map-container" ref={mapContainer} />
+            
+            {mapError ? (
+              <div className="p-4 bg-destructive/10 text-destructive rounded-md">
+                <p className="font-medium">Map Error</p>
+                <p className="text-sm">{mapError}</p>
+                <Button 
+                  className="mt-2" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setTokenInput(true)}
+                >
+                  Update Mapbox Token
+                </Button>
+              </div>
+            ) : (
+              <div className="map-container" ref={mapContainer} />
+            )}
+            
             <div className="flex flex-wrap gap-3 text-sm">
               <div className="flex items-center gap-1">
-                <div className="h-3 w-3 rounded-full bg-emergency"></div>
+                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: colorMap.fire }}></div>
                 <span>Fire</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="h-3 w-3 rounded-full bg-info"></div>
+                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: colorMap.flood }}></div>
                 <span>Flood</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="h-3 w-3 rounded-full bg-warning"></div>
+                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: colorMap.earthquake }}></div>
                 <span>Earthquake</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: '#8B5CF6' }}></div>
+                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: colorMap.hurricane }}></div>
                 <span>Hurricane</span>
               </div>
             </div>
