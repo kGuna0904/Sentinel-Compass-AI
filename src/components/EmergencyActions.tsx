@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,6 +36,7 @@ const EmergencyActions = () => {
     medicalEquipment: string[];
     vehicleTypes: string[];
     magnitude?: number;
+    disasterType: 'flood' | 'fire' | 'earthquake' | 'hurricane';
   }>(null);
 
   const form = useForm<ResourcePredictionFormValues>({
@@ -52,7 +52,6 @@ const EmergencyActions = () => {
   const watchDisasterType = form.watch("disasterType");
 
   const handleEmergencyAction = (action: string) => {
-    // In a real app, this would trigger API calls, notifications, etc.
     toast({
       title: `${action} initiated`,
       description: "Emergency responders have been notified.",
@@ -61,29 +60,23 @@ const EmergencyActions = () => {
   };
 
   const generateResourcePrediction = (values: ResourcePredictionFormValues) => {
-    // In a real app, this would use an AI model to predict resources
-    // For demo purposes, we'll use a simple calculation
-    
-    // Base resource values per 1000 people
     const baseResources = {
-      food: 3000, // meals per day
-      water: 5000, // liters per day
-      rescuers: 20, // personnel
-      medicalStaff: 15, // personnel
-      shelters: 3, // evacuation centers
-      capacity: 400, // people per shelter
-      vehicles: 10, // emergency vehicles
+      food: 3000,
+      water: 5000,
+      rescuers: 20,
+      medicalStaff: 15,
+      shelters: 3,
+      capacity: 400,
+      vehicles: 10,
     };
-    
-    // Severity multipliers
+
     const severityMultiplier = {
       low: 0.7,
       medium: 1.0,
       high: 1.5,
       critical: 2.5,
     };
-    
-    // Disaster type adjustments (relative to base)
+
     const disasterAdjustments: Record<string, Record<string, number>> = {
       flood: {
         food: 1.2,
@@ -109,7 +102,7 @@ const EmergencyActions = () => {
         rescuers: 2.0,
         medicalStaff: 1.8,
         shelters: 1.5,
-        capacity: 0.8, // reduced capacity due to safety concerns
+        capacity: 0.8,
         vehicles: 1.3,
       },
       hurricane: {
@@ -122,11 +115,9 @@ const EmergencyActions = () => {
         vehicles: 1.1,
       },
     };
-    
-    // Scale by population
+
     const populationScale = values.populationAffected / 1000;
-    
-    // Calculate resources based on disaster type, severity, and population
+
     const result = {
       food: Math.round(baseResources.food * severityMultiplier[values.severity] * disasterAdjustments[values.disasterType].food * populationScale),
       water: Math.round(baseResources.water * severityMultiplier[values.severity] * disasterAdjustments[values.disasterType].water * populationScale),
@@ -136,12 +127,12 @@ const EmergencyActions = () => {
       capacity: Math.round(baseResources.capacity * disasterAdjustments[values.disasterType].capacity),
       vehicles: Math.round(baseResources.vehicles * severityMultiplier[values.severity] * disasterAdjustments[values.disasterType].vehicles * populationScale),
       magnitude: values.magnitude,
+      disasterType: values.disasterType,
       rescueType: [],
       medicalEquipment: [],
       vehicleTypes: [],
     };
 
-    // Define specific rescue types, medical equipment, and vehicle types based on disaster type and severity
     const rescueTypes = {
       flood: ['Boat Rescue Teams', 'Swift Water Technicians', 'Helicopter Rescue Units'],
       fire: ['Wildland Firefighters', 'High-Rise Rescue Teams', 'Hazmat Specialists'],
@@ -163,7 +154,6 @@ const EmergencyActions = () => {
       hurricane: ['High-Water Vehicles', 'Debris Clearance Trucks', 'Evacuation Buses', 'Supply Transport']
     };
 
-    // Based on severity, select appropriate number of specialized resources
     const severityIndexMap = { 'low': 1, 'medium': 2, 'high': 3, 'critical': 4 };
     const severityIndex = severityIndexMap[values.severity];
     
@@ -322,7 +312,6 @@ const EmergencyActions = () => {
                     </div>
                   </div>
                   
-                  {/* Specialized Resource Requirements */}
                   <div className="space-y-4 mt-6">
                     <h4 className="font-medium text-md">Specialized Requirements</h4>
                     

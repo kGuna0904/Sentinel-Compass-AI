@@ -1,11 +1,10 @@
-
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 interface DisasterMapProps {
   disasters?: {
@@ -18,29 +17,27 @@ interface DisasterMapProps {
     };
     name: string;
   }[];
+  mapboxToken?: string;
 }
 
-// We'll provide a default token but allow users to update it
 const DEFAULT_MAPBOX_TOKEN = 'pk.eyJ1IjoiZGVtb3VzZXIyMDI1IiwiYSI6ImNscm1rOTgyYTBsN3YyanBsMWhmb2xuOHIifQ.sTmW8qmLWb_1ZRuR1oVK8g';
 
-const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
+const DisasterMap = ({ disasters = [], mapboxToken }: DisasterMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [apiToken, setApiToken] = useState(DEFAULT_MAPBOX_TOKEN);
+  const [apiToken, setApiToken] = useState(mapboxToken || DEFAULT_MAPBOX_TOKEN);
   const [tokenInput, setTokenInput] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  // Color mapping for disaster types
   const colorMap = {
-    flood: '#0EA5E9', // blue
-    fire: '#ea384c', // red
-    earthquake: '#F97316', // orange
-    hurricane: '#8B5CF6', // purple
+    flood: '#0EA5E9',
+    fire: '#ea384c',
+    earthquake: '#F97316',
+    hurricane: '#8B5CF6',
   };
 
-  // Severity radius mapping (in pixels)
   const severityRadius = {
     low: 15,
     medium: 25,
@@ -48,44 +45,44 @@ const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
     critical: 45,
   };
 
+  useEffect(() => {
+    if (mapboxToken) {
+      setApiToken(mapboxToken);
+    }
+  }, [mapboxToken]);
+
   const initializeMap = () => {
     if (!mapContainer.current || !apiToken) return;
-    
-    // Clear any previous errors
+
     setMapError(null);
-    
-    // Remove existing map if it exists
+
     if (map.current) {
       map.current.remove();
       map.current = null;
     }
 
     try {
-      // Initialize map
       mapboxgl.accessToken = apiToken;
-      
+
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/streets-v12',
-        center: [0, 20], // Default center
+        center: [0, 20],
         zoom: 1.5,
       });
 
-      // Add navigation controls
       map.current.addControl(
         new mapboxgl.NavigationControl({
           visualizePitch: true,
         }),
         'top-right'
       );
-      
-      // Add error handling for map loading
+
       map.current.on('error', (e) => {
         console.error('Mapbox error:', e);
         setMapError('Error loading map. Please check your Mapbox token.');
       });
 
-      // Add disaster markers once map is loaded
       map.current.on('load', () => {
         addDisasterMarkers();
       });
@@ -98,15 +95,12 @@ const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
   const addDisasterMarkers = () => {
     if (!map.current) return;
 
-    // Clear existing markers
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
-    // Add new markers for each disaster
     disasters.forEach(disaster => {
       const { latitude, longitude } = disaster.location;
-      
-      // Create marker element
+
       const el = document.createElement('div');
       el.className = 'marker';
       el.style.backgroundColor = colorMap[disaster.type] || '#000000';
@@ -116,33 +110,29 @@ const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
       el.style.opacity = '0.7';
       el.style.border = '2px solid white';
       el.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
-      
-      // Animation for critical and high severity
+
       if (disaster.severity === 'critical' || disaster.severity === 'high') {
         el.style.animation = 'pulse-alert 2s infinite';
       }
-      
-      // Add tooltip with disaster info
+
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
         `<div style="font-weight: bold;">${disaster.name}</div>
          <div>Type: ${disaster.type}</div>
          <div>Severity: ${disaster.severity}</div>`
       );
-      
-      // Create and store marker
+
       const marker = new mapboxgl.Marker(el)
         .setLngLat([longitude, latitude])
         .setPopup(popup)
         .addTo(map.current!);
-      
+
       markers.current.push(marker);
     });
   };
 
   useEffect(() => {
     initializeMap();
-    
-    // Clean up on unmount
+
     return () => {
       if (map.current) {
         map.current.remove();
@@ -151,7 +141,6 @@ const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
     };
   }, [apiToken]);
 
-  // Update markers when disasters change
   useEffect(() => {
     if (map.current && map.current.loaded()) {
       addDisasterMarkers();
@@ -161,8 +150,6 @@ const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
   const handleSearch = () => {
     if (!map.current || !searchQuery) return;
 
-    // In a real implementation, this would call a geocoding API
-    // For demo, we'll simulate with some fixed locations
     const locations: Record<string, [number, number]> = {
       'tokyo': [139.6917, 35.6895],
       'new york': [-74.0060, 40.7128],
@@ -176,8 +163,7 @@ const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
     };
 
     const searchLower = searchQuery.toLowerCase();
-    
-    // Find matching location
+
     for (const [city, coords] of Object.entries(locations)) {
       if (city.includes(searchLower)) {
         map.current.flyTo({
@@ -188,7 +174,7 @@ const DisasterMap = ({ disasters = [] }: DisasterMapProps) => {
         return;
       }
     }
-    
+
     console.log('Location not found in demo data');
   };
 
