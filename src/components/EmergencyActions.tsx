@@ -10,7 +10,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Badge } from '@/components/ui/badge';
-import { Ambulance, HeartPulse, Truck, Activity, Warehouse, Utensils, Droplets } from 'lucide-react';
+import { Ambulance, HeartPulse, Truck, Activity, Warehouse, Utensils, Droplets, AlertOctagon, Bell, HelpingHand, CheckCircle, Loader2 } from 'lucide-react';
+import { 
+  initiateEvacuation, 
+  sendRegionAlert, 
+  requestEmergencyResources, 
+  signalAllClear 
+} from '@/services/emergencyCommunicationService';
+import NotificationSummary from './NotificationSummary';
 
 const resourcePredictionSchema = z.object({
   disasterType: z.enum(['flood', 'fire', 'earthquake', 'hurricane']),
@@ -21,6 +28,17 @@ const resourcePredictionSchema = z.object({
 });
 
 type ResourcePredictionFormValues = z.infer<typeof resourcePredictionSchema>;
+
+interface NotificationRecord {
+  id: string;
+  action: string;
+  status: 'success' | 'error' | 'pending';
+  recipients: {
+    type: string;
+    count: number;
+  }[];
+  timestamp: string;
+}
 
 const EmergencyActions = () => {
   const { toast } = useToast();
@@ -38,6 +56,10 @@ const EmergencyActions = () => {
     magnitude?: number;
     disasterType: 'flood' | 'fire' | 'earthquake' | 'hurricane';
   }>(null);
+  
+  const [notificationHistory, setNotificationHistory] = useState<NotificationRecord[]>([]);
+  const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [regionName, setRegionName] = useState("Downtown Metro Area");
 
   const form = useForm<ResourcePredictionFormValues>({
     resolver: zodResolver(resourcePredictionSchema),
@@ -51,12 +73,165 @@ const EmergencyActions = () => {
 
   const watchDisasterType = form.watch("disasterType");
 
-  const handleEmergencyAction = (action: string) => {
-    toast({
-      title: `${action} initiated`,
-      description: "Emergency responders have been notified.",
-      variant: "destructive",
-    });
+  const handleEmergencyAction = async (action: string) => {
+    setIsLoading(action);
+    
+    const notificationId = Date.now().toString();
+    const newNotification: NotificationRecord = {
+      id: notificationId,
+      action,
+      status: 'pending',
+      recipients: [],
+      timestamp: new Date().toLocaleString()
+    };
+    
+    switch (action) {
+      case 'Evacuation': {
+        newNotification.recipients = [
+          { type: 'Team Leaders', count: 1 },
+          { type: 'Team Members', count: 2 },
+        ];
+        setNotificationHistory(prev => [newNotification, ...prev]);
+        
+        try {
+          const result = await initiateEvacuation(regionName);
+          if (result) {
+            toast({
+              title: `${action} initiated`,
+              description: "Emergency responders have been notified. Messages sent to team members.",
+              variant: "destructive",
+            });
+            setNotificationHistory(prev => 
+              prev.map(n => n.id === notificationId ? { ...n, status: 'success' } : n)
+            );
+          } else {
+            throw new Error("Failed to send all notifications");
+          }
+        } catch (error) {
+          console.error(`Failed to initiate ${action}:`, error);
+          toast({
+            title: `${action} notification error`,
+            description: "Some notifications failed to send. Please try again.",
+            variant: "destructive",
+          });
+          setNotificationHistory(prev => 
+            prev.map(n => n.id === notificationId ? { ...n, status: 'error' } : n)
+          );
+        }
+        break;
+      }
+      
+      case 'Alert': {
+        newNotification.recipients = [
+          { type: 'Team Leaders', count: 1 },
+          { type: 'Team Members', count: 2 },
+          { type: 'Regional Devices', count: 3 }
+        ];
+        setNotificationHistory(prev => [newNotification, ...prev]);
+        
+        try {
+          const result = await sendRegionAlert(regionName, "Emergency situation in progress");
+          if (result) {
+            toast({
+              title: `${action} sent to region`,
+              description: "Alert has been sent to all devices in the affected area.",
+              variant: "destructive",
+            });
+            setNotificationHistory(prev => 
+              prev.map(n => n.id === notificationId ? { ...n, status: 'success' } : n)
+            );
+          } else {
+            throw new Error("Failed to send all alerts");
+          }
+        } catch (error) {
+          console.error(`Failed to send ${action}:`, error);
+          toast({
+            title: `${action} notification error`,
+            description: "Some alerts failed to send. Please try again.",
+            variant: "destructive",
+          });
+          setNotificationHistory(prev => 
+            prev.map(n => n.id === notificationId ? { ...n, status: 'error' } : n)
+          );
+        }
+        break;
+      }
+      
+      case 'Resources Request': {
+        newNotification.recipients = [
+          { type: 'Resource Team Lead', count: 1 },
+          { type: 'Resource Coordinators', count: 2 },
+        ];
+        setNotificationHistory(prev => [newNotification, ...prev]);
+        
+        const resourcesList = ["Emergency Medical Supplies", "Water Purification Units", "Temporary Shelters"];
+        
+        try {
+          const result = await requestEmergencyResources(regionName, resourcesList);
+          if (result) {
+            toast({
+              title: `${action} initiated`,
+              description: "Resource request has been sent to the emergency response team.",
+              variant: "destructive",
+            });
+            setNotificationHistory(prev => 
+              prev.map(n => n.id === notificationId ? { ...n, status: 'success' } : n)
+            );
+          } else {
+            throw new Error("Failed to send resource requests");
+          }
+        } catch (error) {
+          console.error(`Failed to request ${action}:`, error);
+          toast({
+            title: `${action} notification error`,
+            description: "Failed to send resource request. Please try again.",
+            variant: "destructive",
+          });
+          setNotificationHistory(prev => 
+            prev.map(n => n.id === notificationId ? { ...n, status: 'error' } : n)
+          );
+        }
+        break;
+      }
+      
+      case 'All Clear': {
+        newNotification.recipients = [
+          { type: 'All Clear Team Lead', count: 1 },
+          { type: 'All Clear Team', count: 2 },
+          { type: 'Regional Devices', count: 3 }
+        ];
+        setNotificationHistory(prev => [newNotification, ...prev]);
+        
+        try {
+          const result = await signalAllClear(regionName);
+          if (result) {
+            toast({
+              title: `${action} signal sent`,
+              description: "All clear notification has been sent to all affected personnel and devices.",
+              variant: "success",
+            });
+            setNotificationHistory(prev => 
+              prev.map(n => n.id === notificationId ? { ...n, status: 'success' } : n)
+            );
+          } else {
+            throw new Error("Failed to send all clear signal");
+          }
+        } catch (error) {
+          console.error(`Failed to signal ${action}:`, error);
+          toast({
+            title: `${action} notification error`,
+            description: "Failed to send all clear signal. Please try again.",
+            variant: "destructive",
+          });
+          setNotificationHistory(prev => 
+            prev.map(n => n.id === notificationId ? { ...n, status: 'error' } : n)
+          );
+        }
+        break;
+      }
+    }
+    
+    setIsLoading(null);
   };
 
   const generateResourcePrediction = (values: ResourcePredictionFormValues) => {
@@ -184,33 +359,65 @@ const EmergencyActions = () => {
         <CardTitle className="text-xl">Emergency Actions</CardTitle>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <FormLabel>Current Region</FormLabel>
+          <div className="flex gap-2">
+            <Input 
+              value={regionName} 
+              onChange={(e) => setRegionName(e.target.value)}
+              placeholder="Enter region name"
+              className="flex-1"
+            />
+          </div>
+        </div>
+        
         <div className="space-y-3">
           <Button 
-            className="w-full emergency-button"
+            className="w-full emergency-button bg-red-600 hover:bg-red-700 text-white"
             onClick={() => handleEmergencyAction('Evacuation')}
+            disabled={isLoading === 'Evacuation'}
           >
-            Initiate Evacuation
+            {isLoading === 'Evacuation' ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Initiating Evacuation...</>
+            ) : (
+              <><AlertOctagon className="mr-2 h-4 w-4" /> Initiate Evacuation</>
+            )}
           </Button>
           
           <Button 
-            className="w-full warning-button"
+            className="w-full warning-button bg-amber-500 hover:bg-amber-600 text-white"
             onClick={() => handleEmergencyAction('Alert')}
+            disabled={isLoading === 'Alert'}
           >
-            Send Alert to Region
+            {isLoading === 'Alert' ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending Alert...</>
+            ) : (
+              <><Bell className="mr-2 h-4 w-4" /> Send Alert to Region</>
+            )}
           </Button>
           
           <Button 
-            className="w-full info-button"
+            className="w-full info-button bg-blue-600 hover:bg-blue-700 text-white"
             onClick={() => handleEmergencyAction('Resources Request')}
+            disabled={isLoading === 'Resources Request'}
           >
-            Request Emergency Resources
+            {isLoading === 'Resources Request' ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Requesting Resources...</>
+            ) : (
+              <><HelpingHand className="mr-2 h-4 w-4" /> Request Emergency Resources</>
+            )}
           </Button>
           
           <Button 
-            className="w-full success-button"
+            className="w-full success-button bg-green-600 hover:bg-green-700 text-white"
             onClick={() => handleEmergencyAction('All Clear')}
+            disabled={isLoading === 'All Clear'}
           >
-            Signal All Clear
+            {isLoading === 'All Clear' ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signaling All Clear...</>
+            ) : (
+              <><CheckCircle className="mr-2 h-4 w-4" /> Signal All Clear</>
+            )}
           </Button>
           
           <Dialog>
@@ -489,6 +696,23 @@ const EmergencyActions = () => {
             </DialogContent>
           </Dialog>
         </div>
+        
+        {notificationHistory.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-lg font-medium mb-3">Recent Notifications</h3>
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+              {notificationHistory.slice(0, 5).map((notification) => (
+                <NotificationSummary
+                  key={notification.id}
+                  action={notification.action}
+                  status={notification.status}
+                  recipients={notification.recipients}
+                  timestamp={notification.timestamp}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
