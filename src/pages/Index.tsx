@@ -7,9 +7,12 @@ import EmergencyActions from '@/components/EmergencyActions';
 import DisasterStats from '@/components/DisasterStats';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { MapPin } from 'lucide-react';
 
 const Index = () => {
   const { toast } = useToast();
+  const [mapboxToken, setMapboxToken] = useState<string>('pk.eyJ1IjoiZGVtb3VzZXIyMDI1IiwiYSI6ImNscm1rOTgyYTBsN3YyanBsMWhmb2xuOHIifQ.sTmW8qmLWb_1ZRuR1oVK8g');
   
   // Sample disaster data
   const [disasters, setDisasters] = useState([
@@ -97,6 +100,18 @@ const Index = () => {
       title: "Data refreshed",
       description: "All disaster information has been updated",
     });
+    
+    // Real-time data simulation - update timestamp
+    const timestamp = new Date().toLocaleString();
+    document.getElementById('last-updated')?.setAttribute('data-timestamp', timestamp);
+  };
+
+  const updateMapboxToken = (e: React.FormEvent) => {
+    e.preventDefault();
+    toast({
+      title: "Mapbox token updated",
+      description: "The map will now reload with your API token",
+    });
   };
 
   return (
@@ -114,16 +129,38 @@ const Index = () => {
                 Refresh Data
               </Button>
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground" id="last-updated">
               Last updated: {new Date().toLocaleString()}
             </div>
           </div>
         </header>
 
+        {/* Mapbox Token Input */}
+        <div className="mb-6 p-4 border rounded-lg bg-card">
+          <form onSubmit={updateMapboxToken} className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-grow">
+              <Input 
+                type="text" 
+                value={mapboxToken}
+                onChange={(e) => setMapboxToken(e.target.value)}
+                placeholder="Enter your Mapbox API token" 
+                className="w-full"
+              />
+            </div>
+            <Button type="submit" size="sm">
+              <MapPin className="mr-2 h-4 w-4" />
+              Update Map
+            </Button>
+          </form>
+          <p className="text-xs text-muted-foreground mt-2">
+            To display the map, you need a Mapbox API token. Get one at <a href="https://mapbox.com/" target="_blank" rel="noopener noreferrer" className="underline">mapbox.com</a>
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main content - Map takes 2/3 of the screen on large displays */}
           <div className="lg:col-span-2 space-y-6">
-            <DisasterMap disasters={disasters} />
+            <DisasterMap disasters={disasters} mapboxToken={mapboxToken} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <DisasterStats />
               <EmergencyActions />

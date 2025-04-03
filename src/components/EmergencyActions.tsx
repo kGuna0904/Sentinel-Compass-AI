@@ -10,12 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
+import { Badge } from '@/components/ui/badge';
+import { Ambulance, HeartPulse, Truck, Activity, Warehouse, Utensils, Droplets } from 'lucide-react';
 
 const resourcePredictionSchema = z.object({
   disasterType: z.enum(['flood', 'fire', 'earthquake', 'hurricane']),
   severity: z.enum(['low', 'medium', 'high', 'critical']),
   populationAffected: z.coerce.number().min(1).max(10000000),
   areaSize: z.coerce.number().min(1).max(100000),
+  magnitude: z.coerce.number().min(1).max(10).optional(),
 });
 
 type ResourcePredictionFormValues = z.infer<typeof resourcePredictionSchema>;
@@ -30,6 +33,10 @@ const EmergencyActions = () => {
     shelters: number;
     capacity: number;
     vehicles: number;
+    rescueType: string[];
+    medicalEquipment: string[];
+    vehicleTypes: string[];
+    magnitude?: number;
   }>(null);
 
   const form = useForm<ResourcePredictionFormValues>({
@@ -41,6 +48,8 @@ const EmergencyActions = () => {
       areaSize: 100,
     },
   });
+
+  const watchDisasterType = form.watch("disasterType");
 
   const handleEmergencyAction = (action: string) => {
     // In a real app, this would trigger API calls, notifications, etc.
@@ -126,7 +135,41 @@ const EmergencyActions = () => {
       shelters: Math.round(baseResources.shelters * severityMultiplier[values.severity] * disasterAdjustments[values.disasterType].shelters * populationScale * (values.areaSize / 100)),
       capacity: Math.round(baseResources.capacity * disasterAdjustments[values.disasterType].capacity),
       vehicles: Math.round(baseResources.vehicles * severityMultiplier[values.severity] * disasterAdjustments[values.disasterType].vehicles * populationScale),
+      magnitude: values.magnitude,
+      rescueType: [],
+      medicalEquipment: [],
+      vehicleTypes: [],
     };
+
+    // Define specific rescue types, medical equipment, and vehicle types based on disaster type and severity
+    const rescueTypes = {
+      flood: ['Boat Rescue Teams', 'Swift Water Technicians', 'Helicopter Rescue Units'],
+      fire: ['Wildland Firefighters', 'High-Rise Rescue Teams', 'Hazmat Specialists'],
+      earthquake: ['Urban Search & Rescue', 'Heavy Extraction Teams', 'Structural Engineers', 'Canine Units'],
+      hurricane: ['Water Rescue Teams', 'Airlift Units', 'Debris Removal Specialists']
+    };
+
+    const medicalEquipment = {
+      flood: ['Water Purification Systems', 'Antibiotics', 'Tetanus Vaccines', 'Hypothermia Treatment Kits'],
+      fire: ['Burn Treatment Units', 'Respiratory Support', 'Eye Wash Stations', 'Smoke Inhalation Kits'],
+      earthquake: ['Trauma Surgery Kits', 'Crush Syndrome Treatment', 'Blood Supplies', 'Orthopedic Equipment', 'Portable X-ray Machines'],
+      hurricane: ['Field Hospital Units', 'Wound Care Supplies', 'Tetanus Vaccines', 'IV Fluids']
+    };
+
+    const vehicleTypes = {
+      flood: ['Amphibious Vehicles', 'High-Clearance Trucks', 'Rescue Boats', 'Helicopters'],
+      fire: ['Fire Engines', 'Water Tankers', 'Aerial Ladder Trucks', 'Command Vehicles'],
+      earthquake: ['Heavy Excavators', 'Search & Rescue Trucks', 'Medical Transport Vehicles', 'Debris Removal Equipment'],
+      hurricane: ['High-Water Vehicles', 'Debris Clearance Trucks', 'Evacuation Buses', 'Supply Transport']
+    };
+
+    // Based on severity, select appropriate number of specialized resources
+    const severityIndexMap = { 'low': 1, 'medium': 2, 'high': 3, 'critical': 4 };
+    const severityIndex = severityIndexMap[values.severity];
+    
+    result.rescueType = rescueTypes[values.disasterType].slice(0, severityIndex);
+    result.medicalEquipment = medicalEquipment[values.disasterType].slice(0, severityIndex);
+    result.vehicleTypes = vehicleTypes[values.disasterType].slice(0, severityIndex);
     
     setPredictionResults(result);
     
@@ -138,6 +181,11 @@ const EmergencyActions = () => {
 
   const onSubmit = (values: ResourcePredictionFormValues) => {
     generateResourcePrediction(values);
+  };
+
+  const getDateTime = () => {
+    const now = new Date();
+    return now.toLocaleString();
   };
 
   return (
@@ -183,57 +231,137 @@ const EmergencyActions = () => {
                 Predict Resource Needs
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[550px]">
+            <DialogContent className="sm:max-w-[650px] max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>AI Resource Management Prediction</DialogTitle>
                 <DialogDescription>
                   Enter disaster parameters to predict necessary resources for effective response.
+                  <div className="text-xs mt-1">Last updated: {getDateTime()}</div>
                 </DialogDescription>
               </DialogHeader>
               
               {predictionResults ? (
-                <div className="space-y-4 py-4">
+                <div className="space-y-6 py-4">
                   <h3 className="font-medium text-lg">Recommended Resources</h3>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  {predictionResults.magnitude && predictionResults.disasterType === 'earthquake' && (
+                    <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-lg border border-red-300 dark:border-red-700 animate-pulse">
+                      <p className="text-lg font-bold text-red-800 dark:text-red-300">Earthquake Magnitude: {predictionResults.magnitude.toFixed(1)}</p>
+                      <p className="text-sm text-red-700 dark:text-red-400">
+                        {predictionResults.magnitude >= 7 ? 'CRITICAL: Major structural damage expected' : 
+                         predictionResults.magnitude >= 6 ? 'SEVERE: Significant damage to structures expected' : 
+                         predictionResults.magnitude >= 5 ? 'MODERATE: Some structural damage expected' : 
+                         'MINOR: Limited structural damage expected'}
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">Food Supply</p>
+                      <div className="flex items-center gap-2">
+                        <Utensils className="h-4 w-4" />
+                        <p className="text-sm font-medium">Food Supply</p>
+                      </div>
                       <p className="text-2xl font-bold">{predictionResults.food.toLocaleString()} meals/day</p>
                     </div>
                     
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">Water Supply</p>
+                      <div className="flex items-center gap-2">
+                        <Droplets className="h-4 w-4" />
+                        <p className="text-sm font-medium">Water Supply</p>
+                      </div>
                       <p className="text-2xl font-bold">{predictionResults.water.toLocaleString()} liters/day</p>
                     </div>
                     
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">Rescue Personnel</p>
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-4 w-4" />
+                        <p className="text-sm font-medium">Rescue Personnel</p>
+                      </div>
                       <p className="text-2xl font-bold">{predictionResults.rescuers.toLocaleString()} staff</p>
                     </div>
                     
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">Medical Personnel</p>
+                      <div className="flex items-center gap-2">
+                        <HeartPulse className="h-4 w-4" />
+                        <p className="text-sm font-medium">Medical Personnel</p>
+                      </div>
                       <p className="text-2xl font-bold">{predictionResults.medicalStaff.toLocaleString()} staff</p>
                     </div>
                     
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">Evacuation Centers</p>
+                      <div className="flex items-center gap-2">
+                        <Warehouse className="h-4 w-4" />
+                        <p className="text-sm font-medium">Evacuation Centers</p>
+                      </div>
                       <p className="text-2xl font-bold">{predictionResults.shelters.toLocaleString()} centers</p>
                     </div>
                     
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">Center Capacity</p>
+                      <div className="flex items-center gap-2">
+                        <Warehouse className="h-4 w-4" />
+                        <p className="text-sm font-medium">Center Capacity</p>
+                      </div>
                       <p className="text-2xl font-bold">{predictionResults.capacity.toLocaleString()} people/center</p>
                     </div>
                     
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">Emergency Vehicles</p>
+                      <div className="flex items-center gap-2">
+                        <Truck className="h-4 w-4" />
+                        <p className="text-sm font-medium">Emergency Vehicles</p>
+                      </div>
                       <p className="text-2xl font-bold">{predictionResults.vehicles.toLocaleString()} vehicles</p>
                     </div>
                     
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">Total Shelter Capacity</p>
+                      <div className="flex items-center gap-2">
+                        <Warehouse className="h-4 w-4" />
+                        <p className="text-sm font-medium">Total Shelter Capacity</p>
+                      </div>
                       <p className="text-2xl font-bold">{(predictionResults.shelters * predictionResults.capacity).toLocaleString()} people</p>
+                    </div>
+                  </div>
+                  
+                  {/* Specialized Resource Requirements */}
+                  <div className="space-y-4 mt-6">
+                    <h4 className="font-medium text-md">Specialized Requirements</h4>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <h5 className="text-sm font-medium mb-2 flex items-center gap-2">
+                          <Ambulance className="h-4 w-4" /> 
+                          Required Rescue Teams
+                        </h5>
+                        <div className="flex flex-wrap gap-2">
+                          {predictionResults.rescueType.map((type, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">{type}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h5 className="text-sm font-medium mb-2 flex items-center gap-2">
+                          <HeartPulse className="h-4 w-4" /> 
+                          Medical Equipment Needed
+                        </h5>
+                        <div className="flex flex-wrap gap-2">
+                          {predictionResults.medicalEquipment.map((equipment, i) => (
+                            <Badge key={i} variant="outline" className="text-xs">{equipment}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h5 className="text-sm font-medium mb-2 flex items-center gap-2">
+                          <Truck className="h-4 w-4" /> 
+                          Vehicle Types Required
+                        </h5>
+                        <div className="flex flex-wrap gap-2">
+                          {predictionResults.vehicleTypes.map((vehicle, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">{vehicle}</Badge>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   
@@ -334,11 +462,34 @@ const EmergencyActions = () => {
                             />
                           </FormControl>
                           <FormDescription>
-                            Approximate size of affected area
+                            Approximate size of affected area in square kilometers
                           </FormDescription>
                         </FormItem>
                       )}
                     />
+                    
+                    {watchDisasterType === "earthquake" && (
+                      <FormField
+                        control={form.control}
+                        name="magnitude"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Earthquake Magnitude (Richter scale)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.1"
+                                placeholder="e.g. 6.5" 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Magnitude on the Richter scale (1.0 to 10.0)
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+                    )}
                     
                     <DialogFooter>
                       <Button type="submit">Generate Prediction</Button>
