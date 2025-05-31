@@ -1,26 +1,20 @@
-# Welcome to your Lovable project
+# Welcome to Sentinel compass AI
+This is a project developed by "K GUNA SRINIVAS"
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/0000d6c0-84d2-4478-91c8-f156cb7f1577
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/0000d6c0-84d2-4478-91c8-f156cb7f1577) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
+**EMAIL**: k.guna.90205@gmail.com
 
 **Use your preferred IDE**
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+If you want to work locally using your own IDE, you can clone this repo and push changes.
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
-Follow these steps:
+To run this project locally follow these steps:
+1. Install Node.js and npm (use `nvm` if needed).
+2. Clone the repository.
+3. Run the development server.
 
 ```sh
 # Step 1: Clone the repository using the project's Git URL.
@@ -59,12 +53,6 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/0000d6c0-84d2-4478-91c8-f156cb7f1577) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
 
 Yes it is!
 
